@@ -1,0 +1,56 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: blog-gateway
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+      config:
+        server-addr: localhost:8848
+        file-extension: yml
+        shared-configs:
+          - data-id: common.yml
+            refresh: true
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        - id: blog-auth
+          uri: lb://blog-auth
+          predicates:
+            - Path=/auth/**
+          filters:
+            - StripPrefix=1
+        - id: blog-user
+          uri: lb://blog-user
+          predicates:
+            - Path=/api/user/**
+          filters:
+            - StripPrefix=2
+        - id: blog-article
+          uri: lb://blog-article
+          predicates:
+            - Path=/api/article/**
+          filters:
+            - StripPrefix=2
+        - id: blog-category
+          uri: lb://blog-category
+          predicates:
+            - Path=/api/category/**
+          filters:
+            - StripPrefix=2
+        - id: blog-comment
+          uri: lb://blog-comment
+          predicates:
+            - Path=/api/comment/**
+          filters:
+            - StripPrefix=2
+
+logging:
+  level:
+    com.demetrius.blog.gateway: debug
