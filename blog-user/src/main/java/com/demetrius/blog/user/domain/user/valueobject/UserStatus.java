@@ -6,7 +6,7 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @AllArgsConstructor
-@NoArgsConstructor
+@NoArgsConstructor(force = true)
 public enum UserStatus {
 
     ENABLED(1, "正常"),

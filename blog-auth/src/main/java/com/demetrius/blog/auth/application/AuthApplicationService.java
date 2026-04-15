@@ -49,5 +49,12 @@ public class AuthApplicationService {
     }
 
     public void logout(String token) {
+
+
+    }
+
+
+    public void refresh(String token){
+
     }
 }

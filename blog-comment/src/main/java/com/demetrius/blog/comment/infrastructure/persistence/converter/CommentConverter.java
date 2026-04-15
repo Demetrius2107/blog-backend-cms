@@ -8,7 +8,9 @@ import org.springframework.stereotype.Component;
 public class CommentConverter {
 
     public Comment toDomain(CommentPO po) {
-        if (po == null) return null;
+        if (po == null) {
+            return null;
+        }
         return Comment.builder()
                 .id(po.getId())
                 .articleId(po.getArticleId())
@@ -16,17 +18,19 @@ public class CommentConverter {
                 .parentId(po.getParentId())
                 .replyToId(po.getReplyToId())
                 .replyToUserId(po.getReplyToUserId())
-                .setContent(po.getContent())
-                .setIpAddress(po.getIpAddress())
-                .setStatus(po.getStatus())
-                .setLikeCount(po.getLikeCount())
-                .setCreateTime(po.getCreateTime())
-                .setUpdateTime(po.getUpdateTime())
+                .content(po.getContent())
+                .ipAddress(po.getIpAddress())
+                .status(po.getStatus())
+                .likeCount(po.getLikeCount())
+                .createTime(po.getCreateTime())
+                .updateTime(po.getUpdateTime())
                 .build();
     }
 
     public CommentPO toPO(Comment domain) {
-        if (domain == null) return null;
+        if (domain == null) {
+            return null;
+        }
         CommentPO po = new CommentPO();
         po.setId(domain.getId());
         po.setArticleId(domain.getArticleId());

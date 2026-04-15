@@ -4,6 +4,12 @@
 -- 字符集: utf8mb4, 排序规则: utf8mb4_general_ci
 -- ============================================================
 
+-- ============================================================
+-- 博客管理后台 数据库建表脚本
+-- MySQL 8.0+
+-- 字符集: utf8mb4, 排序规则: utf8mb4_general_ci
+-- ============================================================
+
 CREATE DATABASE IF NOT EXISTS `blog_db`
   DEFAULT CHARACTER SET utf8mb4
   COLLATE utf8mb4_general_ci;
@@ -296,13 +302,13 @@ CREATE TABLE `t_friend_link` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='友情链接表';
 
 -- ============================================================
--- 15. 操作日志表 (t_operation_log)
+-- 15. 操作日志表 (t_operation_log) 【已修复语法错误】
 -- ============================================================
 DROP TABLE IF EXISTS `t_operation_log`;
 CREATE TABLE `t_operation_log` (
     `id`          BIGINT       NOT NULL AUTO_INCREMENT,
     `module`      VARCHAR(50)  NOT NULL COMMENT '操作模块',
-    `operation`   VARCHAR(50)  NOT NULL COMMENT '操作类型:CREATE/UPDATE/DELETE/LOGIN等`,
+    `operation`   VARCHAR(50)  NOT NULL COMMENT '操作类型:CREATE/UPDATE/DELETE/LOGIN等',
     `method`      VARCHAR(200) NOT NULL COMMENT '请求方法(类名+方法名)',
     `request_url` VARCHAR(500) DEFAULT NULL COMMENT '请求URL',
     `request_method` VARCHAR(10) DEFAULT NULL COMMENT 'HTTP方法:GET/POST/PUT/DELETE',
@@ -342,7 +348,7 @@ CREATE TABLE `t_login_log` (
     KEY `idx_user_id` (`user_id`),
     KEY `idx_create_time` (`create_time`),
     KEY `idx_status` (`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_general_ci COMMENT='登录日志表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='登录日志表';
 
 -- ============================================================
 -- 初始化数据

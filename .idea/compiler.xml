@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <option name="PARALLEL_COMPILATION_OPTION" value="Disabled" />
+    <annotationProcessing>
+      <profile default="true" name="Default" enabled="true" />
+      <profile name="Annotation profile for blog-backend-ms" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="D:/apache-maven-3.9.1-bin/apache-maven-3.9.1-bin/apache-maven-3.9.1/repository/org/projectlombok/lombok/1.18.32/lombok-1.18.32.jar" />
+          <entry name="D:/apache-maven-3.9.1-bin/apache-maven-3.9.1-bin/apache-maven-3.9.1/repository/org/mapstruct/mapstruct-processor/1.5.5.Final/mapstruct-processor-1.5.5.Final.jar" />
+          <entry name="D:/apache-maven-3.9.1-bin/apache-maven-3.9.1-bin/apache-maven-3.9.1/repository/org/projectlombok/lombok-mapstruct-binding/0.2.0/lombok-mapstruct-binding-0.2.0.jar" />
+        </processorPath>
+        <module name="blog-article" />
+        <module name="blog-common" />
+        <module name="blog-auth" />
+        <module name="blog-category" />
+        <module name="blog-gateway" />
+        <module name="blog-comment" />
+        <module name="blog-user" />
+      </profile>
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+      </profile>
+    </annotationProcessing>
+  </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="blog-article" options="-parameters" />
+      <module name="blog-auth" options="-parameters" />
+      <module name="blog-backend-ms" options="-parameters" />
+      <module name="blog-category" options="-parameters" />
+      <module name="blog-comment" options="-parameters" />
+      <module name="blog-common" options="-parameters" />
+      <module name="blog-gateway" options="-parameters" />
+      <module name="blog-user" options="-parameters" />
+    </option>
+  </component>
+</project>

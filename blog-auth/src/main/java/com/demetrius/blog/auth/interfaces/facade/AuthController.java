@@ -8,6 +8,9 @@ import com.demetrius.blog.common.response.Result;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * 鉴权控制器
+ */
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
@@ -18,11 +21,21 @@ public class AuthController {
         this.authApplicationService = authApplicationService;
     }
 
+    /**
+     *
+     * @param request
+     * @return
+     */
     @PostMapping("/login")
     public Result<TokenVO> login(@Valid @RequestBody LoginRequest request) {
         return Result.success(authApplicationService.login(request));
     }
 
+    /**
+     *
+     * @param request
+     * @return
+     */
     @PostMapping("/register")
     public Result<Void> register(@Valid @RequestBody RegisterRequest request) {
         authApplicationService.register(request);
@@ -34,4 +47,10 @@ public class AuthController {
         authApplicationService.logout(token);
         return Result.success();
     }
+
+
+//    public Result<Void>  refresh(@RequestHeader("Authorization") String token){
+//    }
+//}
+    
 }

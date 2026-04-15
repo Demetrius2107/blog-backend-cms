@@ -14,21 +14,52 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class Article {
 
+    /* ID*/
     private Long id;
+
+    /* 文章标题*/
     private String title;
+
+    /* 内容*/
     private String content;
+
+    /* 总结*/
     private String summary;
+
+    /* 图片*/
     private String coverImage;
+
+
     private Long categoryId;
+
+
     private Integer status;
+
+
     private String tags;
+
+
     private Long authorId;
+
+
     private Long viewCount;
+
+
     private Long likeCount;
+
+
     private Integer commentCount;
+
+
     private Integer isTop;
+
+    /* 发布时间*/
     private LocalDateTime publishTime;
+
+    /* 创建时间*/
     private LocalDateTime createTime;
+
+    /* 更新时间*/
     private LocalDateTime updateTime;
 
     public boolean isPublished() {

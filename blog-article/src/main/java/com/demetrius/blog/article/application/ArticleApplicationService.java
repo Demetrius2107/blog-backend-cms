@@ -4,8 +4,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.demetrius.blog.article.domain.article.entity.Article;
 import com.demetrius.blog.article.domain.article.repository.ArticleRepository;
 import com.demetrius.blog.article.interfaces.dto.*;
-import com.demetrius.blog.common.exception.BizException;
 import com.demetrius.blog.common.exception.ErrorCode;
+import com.demetrius.blog.common.response.PageResult;
 import org.springframework.stereotype.Service;
 
 @Service

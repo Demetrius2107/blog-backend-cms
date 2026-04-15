@@ -30,4 +30,5 @@ public class UserController {
         userApplicationService.updateUser(id, userVO);
         return Result.success();
     }
+
 }

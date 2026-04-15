@@ -9,7 +9,9 @@ import org.springframework.stereotype.Component;
 public class UserConverter {
 
     public User toDomain(UserPO po) {
-        if (po == null) return null;
+        if (po == null) {
+            return null;
+        }
         return User.builder()
                 .id(po.getId())
                 .username(po.getUsername())
@@ -23,7 +25,9 @@ public class UserConverter {
     }
 
     public UserPO toPO(User domain) {
-        if (domain == null) return null;
+        if (domain == null) {
+            return null;
+        }
         UserPO po = new UserPO();
         po.setId(domain.getId());
         po.setUsername(domain.getUsername());

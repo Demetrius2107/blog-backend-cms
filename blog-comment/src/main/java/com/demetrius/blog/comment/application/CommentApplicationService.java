@@ -6,6 +6,7 @@ import com.demetrius.blog.comment.domain.comment.repository.CommentRepository;
 import com.demetrius.blog.comment.interfaces.dto.*;
 import com.demetrius.blog.common.exception.BizException;
 import com.demetrius.blog.common.exception.ErrorCode;
+import com.demetrius.blog.common.response.PageResult;
 import org.springframework.stereotype.Service;
 
 @Service

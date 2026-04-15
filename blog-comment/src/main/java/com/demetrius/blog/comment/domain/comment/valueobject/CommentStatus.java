@@ -6,7 +6,6 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @AllArgsConstructor
-@NoArgsConstructor
 public enum CommentStatus {
 
     PENDING(0, "待审核"),
@@ -18,7 +17,9 @@ public enum CommentStatus {
 
     public static CommentStatus of(int code) {
         for (CommentStatus status : values()) {
-            if (status.code == code) return status;
+            if (status.code == code) {
+                return status;
+            }
         }
         return PENDING;
     }
