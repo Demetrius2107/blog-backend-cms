@@ -1,9 +1,9 @@
 server:
-  port: 8081
+  port: 8084
 
 spring:
   application:
-    name: blog-auth
+    name: blog-category
   datasource:
     url: jdbc:mysql://localhost:3306/blog_db?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
     username: root
@@ -13,24 +13,14 @@ spring:
     nacos:
       discovery:
         server-addr: localhost:8848
-        username: nacos   # Nacos默认用户名
-        password: nacos   # Nacos默认密码
 
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:
     db-config:
       id-type: auto
-      logic-delete-field: deleted
-      logic-delete-value: 1
-      logic-not-delete-value: 0
-
-jwt:
-  secret: demetrius-blog-secret-key-2024-must-be-long-enough-for-hmac-sha
-  expire-seconds: 7200
 
 logging:
   level:
-    com.demetrius.blog.auth: debug
+    com.demetrius.blog.category: debug

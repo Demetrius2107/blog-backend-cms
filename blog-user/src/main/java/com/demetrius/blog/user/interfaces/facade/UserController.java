@@ -30,4 +30,10 @@ public class UserController {
         userApplicationService.updateUser(id, userVO);
         return Result.success();
     }
+
+    @PostMapping("/login")
+    public Result<UserVO> login(){
+
+        return null;
+    }
 }

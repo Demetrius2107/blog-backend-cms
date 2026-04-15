@@ -12,7 +12,7 @@
 
     <artifactId>blog-auth</artifactId>
     <name>blog-auth</name>
-    <description>Blog Auth Service - Authentication & Authorization (DDD)</description>
+    <description>Blog Auth Service - Authentication-Authorization (DDD)</description>
 
     <dependencies>
         <dependency>
@@ -53,6 +53,10 @@
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
         </dependency>
     </dependencies>
 
