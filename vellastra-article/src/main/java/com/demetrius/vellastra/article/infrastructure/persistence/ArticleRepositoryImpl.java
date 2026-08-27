@@ -139,12 +139,37 @@ public class ArticleRepositoryImpl implements ArticleRepository {
     public boolean toggleLike(Long articleId, Long userId) {
         Integer count = articleMapper.checkLikeExists(articleId, userId);
         if (count != null && count > 0) {
-            articleMapper.deleteLike(articleId, userId);
+            articleMapper.cancelLike(articleId, userId);
             return false;
         } else {
             articleMapper.insertLike(articleId, userId);
             return true;
         }
+    }
+
+    @Override
+    public void syncLikeStatus(Long articleId, Long userId, boolean liked) {
+        if (liked) {
+            articleMapper.insertLike(articleId, userId);
+        } else {
+            articleMapper.cancelLike(articleId, userId);
+        }
+        articleMapper.updateLikeCount(articleId, liked ? 1 : -1);
+    }
+
+    @Override
+    public void updateLikeCount(Long articleId, int delta) {
+        articleMapper.updateLikeCount(articleId, delta);
+    }
+
+    @Override
+    public List<Long> findLikedUserIds(Long articleId) {
+        return articleMapper.findLikedUserIds(articleId);
+    }
+
+    @Override
+    public Long countLikes(Long articleId) {
+        return articleMapper.countLikes(articleId);
     }
 
     @Override

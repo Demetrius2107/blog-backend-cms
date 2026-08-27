@@ -17,6 +17,7 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -34,6 +35,15 @@ class ArticleApplicationServiceTest {
     @Mock
     private ArticleRepository articleRepository;
 
+    @Mock
+    private ArticleLikeService articleLikeService;
+
+    @Mock
+    private org.springframework.data.redis.core.StringRedisTemplate stringRedisTemplate;
+
+    @Mock
+    private org.springframework.data.redis.core.ValueOperations<String, String> valueOperations;
+
     @Captor
     private ArgumentCaptor<Article> articleCaptor;
 
@@ -45,7 +55,7 @@ class ArticleApplicationServiceTest {
 
     @BeforeEach
     void setUp() {
-        articleApplicationService = new ArticleApplicationService(articleRepository);
+        articleApplicationService = new ArticleApplicationService(articleRepository, articleLikeService, stringRedisTemplate);
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -193,7 +203,7 @@ class ArticleApplicationServiceTest {
             request.setStatus(ArticleStatus.REVIEWING.getCode());
 
             // when
-            articleApplicationService.updateArticle(1L, request);
+            articleApplicationService.updateArticle(1L, request, 100L, null);
 
             // then
             verify(articleRepository).save(articleCaptor.capture());
@@ -220,7 +230,7 @@ class ArticleApplicationServiceTest {
 
             // when & then
             BizException exception = assertThrows(BizException.class,
-                    () -> articleApplicationService.updateArticle(999L, request));
+                    () -> articleApplicationService.updateArticle(999L, request, 100L, null));
             assertEquals(3001, exception.getCode());
             assertEquals("文章不存在", exception.getMessage());
         }
@@ -237,7 +247,7 @@ class ArticleApplicationServiceTest {
             // status 为 null
 
             // when
-            articleApplicationService.updateArticle(1L, request);
+            articleApplicationService.updateArticle(1L, request, 100L, null);
 
             // then
             verify(articleRepository).save(articleCaptor.capture());
@@ -258,7 +268,7 @@ class ArticleApplicationServiceTest {
             when(articleRepository.findById(1L)).thenReturn(draftArticle);
 
             // when
-            articleApplicationService.deleteArticle(1L);
+            articleApplicationService.deleteArticle(1L, 100L, null);
 
             // then
             verify(articleRepository).delete(1L);
@@ -272,7 +282,7 @@ class ArticleApplicationServiceTest {
 
             // when & then
             BizException exception = assertThrows(BizException.class,
-                    () -> articleApplicationService.deleteArticle(2L));
+                    () -> articleApplicationService.deleteArticle(2L, 100L, null));
             assertEquals(3002, exception.getCode());
             assertEquals("文章已发布，无法删除", exception.getMessage());
             verify(articleRepository, never()).delete(anyLong());
@@ -286,7 +296,7 @@ class ArticleApplicationServiceTest {
 
             // when & then
             assertThrows(BizException.class,
-                    () -> articleApplicationService.deleteArticle(999L));
+                    () -> articleApplicationService.deleteArticle(999L, 100L, null));
         }
 
         @Test
@@ -296,7 +306,7 @@ class ArticleApplicationServiceTest {
             when(articleRepository.findById(3L)).thenReturn(offlineArticle);
 
             // when
-            articleApplicationService.deleteArticle(3L);
+            articleApplicationService.deleteArticle(3L, 100L, null);
 
             // then
             verify(articleRepository).delete(3L);
@@ -502,10 +512,43 @@ class ArticleApplicationServiceTest {
         @Test
         @DisplayName("增加浏览量应调用仓储层 updateViewCount")
         void shouldIncrementViewCount() {
+            // given：Redis 防刷窗口首次命中（SETNX 成功）
+            when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
+            when(valueOperations.setIfAbsent(anyString(), anyString(), any(Duration.class)))
+                    .thenReturn(true);
+
             // when
-            articleApplicationService.incrementViewCount(1L);
+            articleApplicationService.incrementViewCount(1L, "192.168.1.1");
 
             // then
+            verify(articleRepository).updateViewCount(1L);
+        }
+
+        @Test
+        @DisplayName("同一 IP 窗口期内重复访问不应重复计数")
+        void shouldNotCountDuplicateViewWithinWindow() {
+            // given：SETNX 返回 false，表示窗口期内已有记录
+            when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
+            when(valueOperations.setIfAbsent(anyString(), anyString(), any(Duration.class)))
+                    .thenReturn(false);
+
+            // when
+            articleApplicationService.incrementViewCount(1L, "192.168.1.1");
+
+            // then：不触发 DB 更新
+            verify(articleRepository, never()).updateViewCount(anyLong());
+        }
+
+        @Test
+        @DisplayName("Redis 异常时降级放行计数（可用性优先）")
+        void shouldCountWhenRedisFails() {
+            // given：Redis 抛异常
+            when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
+            when(valueOperations.setIfAbsent(anyString(), anyString(), any(Duration.class)))
+                    .thenThrow(new RuntimeException("redis down"));
+
+            // when：不应抛出异常，且计数照常
+            assertDoesNotThrow(() -> articleApplicationService.incrementViewCount(1L, "192.168.1.1"));
             verify(articleRepository).updateViewCount(1L);
         }
 
@@ -514,7 +557,10 @@ class ArticleApplicationServiceTest {
         void shouldNotThrowWhenArticleNotFound() {
             // 这里仓储层 updateViewCount 是直接 SQL 更新，不存在也不抛异常
             // 验证不会抛出任何异常即可
-            assertDoesNotThrow(() -> articleApplicationService.incrementViewCount(999L));
+            when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
+            when(valueOperations.setIfAbsent(anyString(), anyString(), any(Duration.class)))
+                    .thenReturn(true);
+            assertDoesNotThrow(() -> articleApplicationService.incrementViewCount(999L, "192.168.1.1"));
         }
     }
 
@@ -525,37 +571,37 @@ class ArticleApplicationServiceTest {
     class Like {
 
         @Test
-        @DisplayName("新增点赞应增加 likeCount")
-        void shouldIncreaseLikeCount() {
+        @DisplayName("点赞应委托 ArticleLikeService 并返回新状态")
+        void shouldDelegateLikeToggle() {
             // given
             when(articleRepository.findById(1L)).thenReturn(draftArticle);
-            when(articleRepository.toggleLike(1L, 100L)).thenReturn(true);
+            when(articleLikeService.toggleLike(1L, 100L)).thenReturn(true);
 
             // when
-            articleApplicationService.toggleLike(1L, 100L);
+            boolean liked = articleApplicationService.toggleLike(1L, 100L);
 
             // then
-            verify(articleRepository).save(articleCaptor.capture());
-            assertEquals(1L, articleCaptor.getValue().getLikeCount());
+            assertTrue(liked);
+            verify(articleLikeService).toggleLike(1L, 100L);
+            verify(articleRepository, never()).save(any());
         }
 
         @Test
-        @DisplayName("取消点赞应减少 likeCount")
-        void shouldDecreaseLikeCount() {
+        @DisplayName("取消点赞应返回 false")
+        void shouldReturnFalseWhenUnlike() {
             // given
-            when(articleRepository.findById(2L)).thenReturn(publishedArticle);
-            when(articleRepository.toggleLike(2L, 100L)).thenReturn(false);
+            when(articleRepository.findById(1L)).thenReturn(publishedArticle);
+            when(articleLikeService.toggleLike(1L, 100L)).thenReturn(false);
 
             // when
-            articleApplicationService.toggleLike(2L, 100L);
+            boolean liked = articleApplicationService.toggleLike(1L, 100L);
 
             // then
-            verify(articleRepository).save(articleCaptor.capture());
-            assertEquals(9L, articleCaptor.getValue().getLikeCount());
+            assertFalse(liked);
         }
 
         @Test
-        @DisplayName("点赞不存在的文章应抛出异常")
+        @DisplayName("点赞不存在的文章应抛出异常，不触碰 LikeService")
         void shouldThrowWhenArticleNotFound() {
             // given
             when(articleRepository.findById(999L)).thenReturn(null);
@@ -563,6 +609,33 @@ class ArticleApplicationServiceTest {
             // when & then
             assertThrows(BizException.class,
                     () -> articleApplicationService.toggleLike(999L, 100L));
+            verifyNoInteractions(articleLikeService);
+        }
+
+        @Test
+        @DisplayName("查询点赞数应委托 LikeService")
+        void shouldDelegateGetLikeCount() {
+            // given
+            when(articleLikeService.getLikeCount(1L)).thenReturn(10L);
+
+            // when
+            long count = articleApplicationService.getLikeCount(1L);
+
+            // then
+            assertEquals(10L, count);
+        }
+
+        @Test
+        @DisplayName("查询点赞状态应委托 LikeService")
+        void shouldDelegateIsLiked() {
+            // given
+            when(articleLikeService.isLiked(1L, 100L)).thenReturn(true);
+
+            // when
+            boolean liked = articleApplicationService.isLiked(1L, 100L);
+
+            // then
+            assertTrue(liked);
         }
     }
 

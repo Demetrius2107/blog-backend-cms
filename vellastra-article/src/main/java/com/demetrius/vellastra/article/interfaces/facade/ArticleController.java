@@ -5,6 +5,7 @@ import com.demetrius.vellastra.article.application.DashboardApplicationService;
 import com.demetrius.vellastra.article.interfaces.dto.*;
 import com.demetrius.vellastra.common.response.PageResult;
 import com.demetrius.vellastra.common.response.Result;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
@@ -154,22 +155,34 @@ public class ArticleController {
     // ======================== 互动统计 ========================
 
     /**
-     * 浏览计数（IP+时间窗口防刷逻辑由 service 层处理）
+     * 浏览计数（IP+时间窗口防刷：同一 IP 对同一文章 10 分钟内只计一次）
      */
     @PostMapping("/{id}/view")
-    public Result<Void> viewArticle(@PathVariable Long id) {
-        articleApplicationService.incrementViewCount(id);
+    public Result<Void> viewArticle(@PathVariable Long id, HttpServletRequest request) {
+        articleApplicationService.incrementViewCount(id, resolveClientIp(request));
         return Result.success();
     }
 
     /**
+     * 解析客户端真实 IP（兼容反向代理透传 X-Forwarded-For）
+     */
+    private String resolveClientIp(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isBlank()) {
+            return forwarded.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
+    }
+
+    /**
      * 点赞/取消点赞（toggle 模式）
+     *
+     * @return true=操作后已点赞，false=操作后已取消
      */
     @PostMapping("/{id}/like")
-    public Result<Void> likeArticle(@PathVariable Long id,
-                                    @RequestHeader("X-User-Id") Long userId) {
-        articleApplicationService.toggleLike(id, userId);
-        return Result.success();
+    public Result<Boolean> likeArticle(@PathVariable Long id,
+                                       @RequestHeader("X-User-Id") Long userId) {
+        return Result.success(articleApplicationService.toggleLike(id, userId));
     }
 
     // ======================== 数据仪表盘 ========================

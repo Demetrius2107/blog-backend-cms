@@ -7,9 +7,12 @@ import com.demetrius.vellastra.article.domain.article.valueobject.ArticleStatus;
 import com.demetrius.vellastra.article.interfaces.dto.*;
 import com.demetrius.vellastra.common.exception.ErrorCode;
 import com.demetrius.vellastra.common.response.PageResult;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -28,10 +31,13 @@ import java.util.Map;
  * Copyright © 2026 wanqiu All rights reserved
  
  */
+@Slf4j
 @Service
 public class ArticleApplicationService {
 
     private final ArticleRepository articleRepository;
+    private final ArticleLikeService articleLikeService;
+    private final StringRedisTemplate redisViewTemplate;
 
     @Value("${site.name:Vellastra}")
     private String siteName;
@@ -42,8 +48,12 @@ public class ArticleApplicationService {
     @Value("${site.url:}")
     private String siteUrl;
 
-    public ArticleApplicationService(ArticleRepository articleRepository) {
+    public ArticleApplicationService(ArticleRepository articleRepository,
+                                     ArticleLikeService articleLikeService,
+                                     StringRedisTemplate redisViewTemplate) {
         this.articleRepository = articleRepository;
+        this.articleLikeService = articleLikeService;
+        this.redisViewTemplate = redisViewTemplate;
     }
 
     /**
@@ -216,28 +226,54 @@ public class ArticleApplicationService {
     }
 
     /**
-     * 增加浏览量（防刷逻辑后续在此扩展）
+     * 增加浏览量（IP + 时间窗口防刷：同一 IP 对同一文章在窗口期内只计一次）
      *
      * @param id 文章ID
+     * @param ip 客户端IP（用于防刷窗口）
      */
-    public void incrementViewCount(Long id) {
+    public void incrementViewCount(Long id, String ip) {
+        // 防刷：SETNX 写入 "view:{articleId}:{ip}" 成功才计数，TTL 为防刷窗口
+        String key = "article:view:" + id + ":" + (ip != null ? ip : "unknown");
+        try {
+            Boolean firstView = redisViewTemplate.opsForValue()
+                    .setIfAbsent(key, "1", Duration.ofMinutes(10));
+            if (!Boolean.TRUE.equals(firstView)) {
+                return; // 窗口期内重复访问，不计
+            }
+        } catch (Exception e) {
+            log.warn("浏览量防刷 Redis 异常，放行计数: articleId={}", id);
+        }
         articleRepository.updateViewCount(id);
     }
 
     /**
      * 点赞/取消点赞（toggle 模式）
+     * 走 Redis Set 热数据，异步落库保证最终一致；Redis 不可用时降级直接写 DB。
      *
      * @param id     文章ID
      * @param userId 用户ID
+     * @return 操作后是否处于已点赞状态
      */
-    public void toggleLike(Long id, Long userId) {
+    public boolean toggleLike(Long id, Long userId) {
         Article article = articleRepository.findById(id);
         if (article == null) {
             throw ErrorCode.ARTICLE_NOT_FOUND.toException();
         }
-        boolean liked = articleRepository.toggleLike(id, userId);
-        article.setLikeCount(article.getLikeCount() + (liked ? 1 : -1));
-        articleRepository.save(article);
+        return articleLikeService.toggleLike(id, userId);
+    }
+
+    /**
+     * 查询文章点赞数（优先 Redis，冷启动回源 DB）
+     */
+    public long getLikeCount(Long id) {
+        return articleLikeService.getLikeCount(id);
+    }
+
+    /**
+     * 当前用户是否已点赞（供文章详情展示）
+     */
+    public boolean isLiked(Long id, Long userId) {
+        return articleLikeService.isLiked(id, userId);
     }
 
     /**
