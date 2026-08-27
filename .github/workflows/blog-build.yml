@@ -1,0 +1,70 @@
+name: Build & Deploy Blog
+
+# 静态站构建部署流水线
+# 由 vellastra-publish 的 DeployNodeExecutor 通过 GitHub repository_dispatch 触发，
+# 也可手动触发或定时全量重建。
+
+on:
+  # 后端发布引擎调用 GitHub API 触发
+  repository_dispatch:
+    types: [publish]
+  # 手动触发
+  workflow_dispatch:
+  # 每 6 小时全量重建（兜底，确保静态站与后端数据一致）
+  schedule:
+    - cron: '0 */6 * * *'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同一时间只允许一个构建运行，避免并发部署冲突
+concurrency:
+  group: blog-build
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: blog-site/package.json
+
+      - name: Install dependencies
+        working-directory: blog-site
+        run: npm ci || npm install
+
+      - name: Fetch content from CMS
+        working-directory: blog-site
+        env:
+          # 后端地址：生产环境通过 GitHub Secret 注入，本地开发用 localhost
+          CMS_API_URL: ${{ secrets.CMS_API_URL }}
+        run: npm run fetch-content
+
+      - name: Build with VitePress
+        working-directory: blog-site
+        run: npm run build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: blog-site/dist
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

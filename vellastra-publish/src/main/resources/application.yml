@@ -29,3 +29,24 @@ springdoc:
   swagger-ui:
     enabled: true
     path: /doc.html
+
+# 发布引擎配置
+publish:
+  # 通用 webhook（兼容旧逻辑，未配置 GitHub 时降级使用）
+  webhook:
+    url: ${PUBLISH_WEBHOOK_URL:}
+  max-retries: ${PUBLISH_MAX_RETRIES:3}
+  version-prefix: ${PUBLISH_VERSION_PREFIX:v}
+  # GitHub repository_dispatch 触发配置
+  # 后端调用 POST /repos/{owner}/{repo}/dispatches 触发静态站构建
+  github:
+    # Personal Access Token，需要 repo 权限（触发 workflow_dispatch/repository_dispatch）
+    token: ${GITHUB_TOKEN:}
+    # 静态站仓库 owner（用户名或组织名）
+    owner: ${GITHUB_OWNER:}
+    # 静态站仓库名
+    repo: ${GITHUB_REPO:}
+    # dispatch 事件类型，GitHub Actions workflow 的 repository_dispatch.types 要与此匹配
+    event-type: ${GITHUB_EVENT_TYPE:publish}
+    api-base: ${GITHUB_API_BASE:https://api.github.com}
+

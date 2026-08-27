@@ -67,10 +67,10 @@ export async function updateArticle(id, data) {
 
 /**
  * 发布文章
- * 网关路由: POST /api/article/{id}/publish → StripPrefix=2 → vellastra-article/article/{id}/publish
+ * 网关路由: PATCH /api/article/{id}/publish → StripPrefix=2 → vellastra-article/article/{id}/publish
  */
 export async function publishArticle(id) {
-  const res = await client.post(`/api/article/${id}/publish`);
+  const res = await client.patch(`/api/article/${id}/publish`);
   return res.data;
 }
 

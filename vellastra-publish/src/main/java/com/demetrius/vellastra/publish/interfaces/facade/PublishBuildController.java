@@ -3,6 +3,7 @@ package com.demetrius.vellastra.publish.interfaces.facade;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.demetrius.vellastra.common.response.Result;
 import com.demetrius.vellastra.publish.application.PublishBuildService;
+import com.demetrius.vellastra.publish.infrastructure.persistence.po.PublishBuildNodePO;
 import com.demetrius.vellastra.publish.infrastructure.persistence.po.PublishBuildPO;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
@@ -39,6 +40,14 @@ public class PublishBuildController {
     public Result<List<PublishBuildPO>> history(@PathVariable Long siteId,
                                                 @RequestParam(defaultValue = "20") int limit) {
         return Result.success(buildService.getBuildHistory(siteId, limit));
+    }
+
+    /**
+     * 查询构建的节点执行明细（可观测性：各阶段状态/日志/耗时）
+     */
+    @GetMapping("/{id}/nodes")
+    public Result<List<PublishBuildNodePO>> nodes(@PathVariable Long id) {
+        return Result.success(buildService.getBuildNodes(id));
     }
 
     @PostMapping("/{id}/retry")

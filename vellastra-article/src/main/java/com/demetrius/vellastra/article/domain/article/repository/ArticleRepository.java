@@ -37,4 +37,12 @@ public interface ArticleRepository {
     boolean toggleLike(Long articleId, Long userId);
 
     List<Article> findLatest(int size);
+
+    /**
+     * 按状态查询全部文章（不分页，供 SSG 导出使用）
+     *
+     * @param status 文章状态码（0草稿/1待审核/2已发布/3下架）
+     * @return 符合状态的全部文章列表
+     */
+    List<Article> findAllByStatus(Integer status);
 }

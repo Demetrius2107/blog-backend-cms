@@ -42,13 +42,25 @@ spring:
             - Path=/api/comment/**
           filters:
             - StripPrefix=2
+        - id: vellastra-file
+          uri: http://localhost:8086
+          predicates:
+            - Path=/api/file/**
+          filters:
+            - StripPrefix=1
+        - id: vellastra-publish
+          uri: http://localhost:8088
+          predicates:
+            - Path=/api/publish/**
+          filters:
+            - StripPrefix=2
 
 logging:
   level:
     com.demetrius.vellastra.gateway: debug
 
 gateway:
-  white-list: /auth/login,/auth/register,/actuator/**,/doc.html,/v3/api-docs,/swagger-ui/**,/webjars/**
+  white-list: /auth/login,/auth/register,/actuator/**,/doc.html,/v3/api-docs,/swagger-ui/**,/webjars/**,/api/article/export/**
 
 # Sentinel 限流配置
 spring.cloud.sentinel:

@@ -100,7 +100,8 @@ async function pushSingleFile(filePath) {
       summary: frontmatter.summary,
       coverImage: frontmatter.coverImage,
       categoryId: frontmatter.category,
-      tags: frontmatter.tags,
+      // 后端 CreateArticleRequest.tags 是逗号分隔字符串，frontmatter.tags 是数组，需转换
+      tags: Array.isArray(frontmatter.tags) ? frontmatter.tags.join(',') : frontmatter.tags,
       status: 0, // 草稿
     };
 

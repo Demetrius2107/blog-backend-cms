@@ -7,34 +7,27 @@ import com.demetrius.vellastra.publish.domain.site.entity.PublishSite;
 import com.demetrius.vellastra.publish.domain.site.repository.PublishSiteRepository;
 import com.demetrius.vellastra.publish.infrastructure.persistence.mapper.PublishBuildMapper;
 import com.demetrius.vellastra.publish.infrastructure.persistence.po.PublishBuildPO;
+import com.demetrius.vellastra.publish.infrastructure.persistence.po.PublishBuildNodePO;
+import com.demetrius.vellastra.publish.infrastructure.persistence.mapper.PublishBuildNodeMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
 @Service
 public class PublishBuildService {
 
     private final PublishBuildMapper buildMapper;
+    private final PublishBuildNodeMapper buildNodeMapper;
     private final PublishSiteRepository siteRepository;
     private final PublishNotificationService notificationService;
-    private final HttpClient httpClient = HttpClient.newHttpClient();
-    private final AtomicInteger buildCounter = new AtomicInteger(0);
-
-    @Value("${publish.webhook.url:}")
-    private String webhookUrl;
+    private final PublishBuildExecutor buildExecutor;
+    private final java.util.concurrent.atomic.AtomicInteger buildCounter = new java.util.concurrent.atomic.AtomicInteger(0);
 
     @Value("${publish.max-retries:3}")
     private int maxRetries;
@@ -43,11 +36,15 @@ public class PublishBuildService {
     private String versionPrefix;
 
     public PublishBuildService(PublishBuildMapper buildMapper,
+                               PublishBuildNodeMapper buildNodeMapper,
                                PublishSiteRepository siteRepository,
-                               PublishNotificationService notificationService) {
+                               PublishNotificationService notificationService,
+                               PublishBuildExecutor buildExecutor) {
         this.buildMapper = buildMapper;
+        this.buildNodeMapper = buildNodeMapper;
         this.siteRepository = siteRepository;
         this.notificationService = notificationService;
+        this.buildExecutor = buildExecutor;
     }
 
     // ===================== 构建管理 =====================
@@ -91,62 +88,9 @@ public class PublishBuildService {
         log.info("构建已创建: id={}, siteId={}, version={}, env={}",
                 po.getId(), siteId, versionTag, environment);
 
-        // 异步执行
-        executeBuild(po.getId());
+        // 通过独立 Bean 调用，经 Spring 代理使 @Async 生效，脱离本方法的事务边界
+        buildExecutor.executeBuild(po.getId());
         return po.getId();
-    }
-
-    /** 异步执行构建（流水线模式） */
-    @Async
-    public CompletableFuture<Void> executeBuild(Long buildId) {
-        PublishBuildPO build = buildMapper.selectById(buildId);
-        if (build == null) return CompletableFuture.completedFuture(null);
-        long startMs = System.currentTimeMillis();
-
-        try {
-            updateStatus(build, "building");
-
-            // Stage 1: 前置检查
-            if (!checkSiteExists(build)) {
-                failBuild(build, "站点不存在", startMs);
-                return CompletableFuture.completedFuture(null);
-            }
-            appendLog("running", "前置检查通过");
-
-            // Stage 2: 拉取代码
-            appendLog("git-clone", "正在拉取代码: branch=" + build.getBranch());
-            Thread.sleep(800);
-
-            // Stage 3: 执行构建
-            appendLog("build", "正在执行构建命令...");
-            Thread.sleep(1000);
-
-            // Stage 4: 部署
-            appendLog("deploy", "正在部署到 " + build.getEnvironment() + " 环境...");
-            boolean deployed = triggerWebhook(build);
-            if (!deployed) {
-                handleBuildFailure(build, "webhook 部署失败", startMs);
-                return CompletableFuture.completedFuture(null);
-            }
-            appendLog("deploy", "部署成功");
-
-            // Stage 5: 完成
-            build.setStatus("success");
-            build.setCompletedAt(LocalDateTime.now());
-            build.setDurationMs(System.currentTimeMillis() - startMs);
-            buildMapper.updateById(build);
-            appendLog("complete", "构建发布完成 (版本: " + build.getVersionTag() + ")");
-
-            // 通知
-            notificationService.notifyBuildSuccess(build);
-            log.info("构建成功: id={}, version={}, duration={}ms",
-                    buildId, build.getVersionTag(), build.getDurationMs());
-
-        } catch (Exception e) {
-            log.error("构建异常: buildId={}, error={}", buildId, e.getMessage());
-            handleBuildFailure(build, e.getMessage(), startMs);
-        }
-        return CompletableFuture.completedFuture(null);
     }
 
     /** 重试失败构建 */
@@ -160,7 +104,7 @@ public class PublishBuildService {
         build.setUpdateTime(LocalDateTime.now());
         buildMapper.updateById(build);
         log.info("构建已重新加入队列: buildId={}", buildId);
-        executeBuild(buildId);
+        buildExecutor.executeBuild(buildId);
     }
 
     /** 回滚到指定版本 */
@@ -174,12 +118,14 @@ public class PublishBuildService {
         rollbackBuild.setVersionTag(target.getVersionTag() + "-rollback");
         rollbackBuild.setEnvironment(target.getEnvironment());
         rollbackBuild.setBuildNumber(String.valueOf(System.currentTimeMillis()));
-        rollbackBuild.setStatus("building");
+        rollbackBuild.setStatus("queued");
         rollbackBuild.setRetryCount(0);
         rollbackBuild.setMaxRetries(maxRetries);
         rollbackBuild.setTriggeredBy(triggeredBy);
         rollbackBuild.setRollbacked(true);
         rollbackBuild.setRolledBackFromId(buildId);
+        rollbackBuild.setCreateTime(LocalDateTime.now());
+        rollbackBuild.setUpdateTime(LocalDateTime.now());
         buildMapper.insert(rollbackBuild);
 
         // 标记原构建为已回滚
@@ -189,24 +135,8 @@ public class PublishBuildService {
             buildMapper.updateById(original);
         }
 
-        // 异步执行回滚部署
-        PublishBuildPO finalRollback = rollbackBuild;
-        CompletableFuture.runAsync(() -> {
-            try {
-                Thread.sleep(500);
-                appendLog("deploy", "正在回滚到版本: " + target.getVersionTag());
-                Thread.sleep(1000);
-                finalRollback.setStatus("success");
-                finalRollback.setCompletedAt(LocalDateTime.now());
-                buildMapper.updateById(finalRollback);
-                notificationService.notifyRollbackSuccess(finalRollback, target.getVersionTag());
-                log.info("回滚成功: buildId={}, targetVersion={}", finalRollback.getId(), target.getVersionTag());
-            } catch (Exception e) {
-                finalRollback.setStatus("failed");
-                finalRollback.setErrorMessage(e.getMessage());
-                buildMapper.updateById(finalRollback);
-            }
-        });
+        // TODO(A3): 回滚也应走 NodeScheduler 节点序列，当前先复用 executeBuild
+        buildExecutor.executeBuild(rollbackBuild.getId());
     }
 
     // ===================== 查询 =====================
@@ -228,69 +158,10 @@ public class PublishBuildService {
                 .last("LIMIT " + limit));
     }
 
-    // ===================== 内部方法 =====================
-
-    private boolean checkSiteExists(PublishBuildPO build) {
-        return siteRepository.findById(build.getSiteId()) != null;
-    }
-
-    private void updateStatus(PublishBuildPO build, String status) {
-        build.setStatus(status);
-        if ("building".equals(status) && build.getStartedAt() == null) {
-            build.setStartedAt(LocalDateTime.now());
-        }
-        build.setUpdateTime(LocalDateTime.now());
-        buildMapper.updateById(build);
-    }
-
-    private void appendLog(String stage, String message) {
-        log.info("[{}] {}", stage, message);
-    }
-
-    private boolean triggerWebhook(PublishBuildPO build) {
-        if (webhookUrl == null || webhookUrl.isEmpty()) {
-            appendLog("deploy", "未配置 webhook URL，跳过部署");
-            return true;
-        }
-        try {
-            String body = String.format(
-                    "{\"buildId\":%d,\"siteId\":%d,\"version\":\"%s\",\"env\":\"%s\",\"rollback\":%b}",
-                    build.getId(), build.getSiteId(), build.getVersionTag(),
-                    build.getEnvironment(), build.getRollbacked() != null && build.getRollbacked());
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(webhookUrl))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(body))
-                    .build();
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            appendLog("deploy", "HTTP " + response.statusCode());
-            return response.statusCode() >= 200 && response.statusCode() < 300;
-        } catch (Exception e) {
-            appendLog("deploy", "webhook 异常: " + e.getMessage());
-            return false;
-        }
-    }
-
-    private void handleBuildFailure(PublishBuildPO build, String reason, long startMs) {
-        int retryCount = build.getRetryCount() != null ? build.getRetryCount() : 0;
-        if (retryCount < maxRetries) {
-            build.setRetryCount(retryCount + 1);
-            build.setStatus("queued");
-            appendLog("retry", String.format("失败重试 (%d/%d): %s", retryCount + 1, maxRetries, reason));
-        } else {
-            failBuild(build, reason, startMs);
-        }
-        build.setUpdateTime(LocalDateTime.now());
-        buildMapper.updateById(build);
-    }
-
-    private void failBuild(PublishBuildPO build, String reason, long startMs) {
-        build.setStatus("failed");
-        build.setErrorMessage(reason);
-        build.setCompletedAt(LocalDateTime.now());
-        build.setDurationMs(System.currentTimeMillis() - startMs);
-        buildMapper.updateById(build);
-        notificationService.notifyBuildFailed(build, reason);
-        log.warn("构建失败: buildId={}, reason={}", build.getId(), reason);
+    /** 查询某次构建的节点执行明细（可观测性） */
+    public List<PublishBuildNodePO> getBuildNodes(Long buildId) {
+        return buildNodeMapper.selectList(new LambdaQueryWrapper<PublishBuildNodePO>()
+                .eq(PublishBuildNodePO::getBuildId, buildId)
+                .orderByAsc(PublishBuildNodePO::getSortOrder));
     }
 }

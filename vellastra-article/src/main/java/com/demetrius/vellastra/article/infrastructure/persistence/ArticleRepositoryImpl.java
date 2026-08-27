@@ -155,4 +155,14 @@ public class ArticleRepositoryImpl implements ArticleRepository {
         List<ArticlePO> poList = articleMapper.selectList(wrapper);
         return poList.stream().map(articleConverter::toDomain).toList();
     }
+
+    @Override
+    public List<Article> findAllByStatus(Integer status) {
+        LambdaQueryWrapper<ArticlePO> wrapper = new LambdaQueryWrapper<ArticlePO>()
+                .eq(status != null, ArticlePO::getStatus, status)
+                .orderByDesc(ArticlePO::getIsTop)
+                .orderByDesc(ArticlePO::getPublishTime);
+        List<ArticlePO> poList = articleMapper.selectList(wrapper);
+        return poList.stream().map(articleConverter::toDomain).toList();
+    }
 }
