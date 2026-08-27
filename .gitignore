@@ -30,3 +30,13 @@ package-lock.json
 
 # blog-cli 预览临时文件
 blog-cli/.preview/
+
+# AI 工具本地配置
+.atomcode/
+.qoder/
+.zcode/
+
+# 静态站构建产物（由 fetch-content 脚本生成）
+blog-site/posts/
+blog-site/dist/
+blog-site/node_modules/

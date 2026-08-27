@@ -99,28 +99,43 @@ public class CommentApplicationService {
     }
 
     /**
-     * 删除评论
+     * 删除评论（仅评论作者本人或管理员可操作）
      *
-     * @param id 评论ID
+     * @param id     评论ID
+     * @param userId 当前用户ID
+     * @param roles  当前用户角色（逗号分隔，含 1=超级管理员）
      */
-    public void delete(Long id) {
+    public void delete(Long id, Long userId, String roles) {
         Comment comment = commentRepository.findById(id);
         if (comment == null) {
             throw ErrorCode.COMMENT_NOT_FOUND.toException();
+        }
+        // 越权校验：仅评论作者本人或管理员可删除
+        boolean isAdmin = roles != null && java.util.Arrays.stream(roles.split(","))
+                .map(String::trim).anyMatch("1"::equals);
+        if (!isAdmin && (userId == null || !userId.equals(comment.getUserId()))) {
+            throw ErrorCode.FORBIDDEN.toException();
         }
         commentRepository.delete(id);
     }
 
     /**
-     * 审核评论
+     * 审核评论（仅管理员可操作）
      *
      * @param id     评论ID
      * @param status 目标状态（1-通过 2-拒绝）
+     * @param roles  当前用户角色（逗号分隔，含 1=超级管理员）
      */
-    public void audit(Long id, Integer status) {
+    public void audit(Long id, Integer status, String roles) {
         Comment comment = commentRepository.findById(id);
         if (comment == null) {
             throw ErrorCode.COMMENT_NOT_FOUND.toException();
+        }
+        // 越权校验：仅管理员（角色ID=1）可审核
+        boolean isAdmin = roles != null && java.util.Arrays.stream(roles.split(","))
+                .map(String::trim).anyMatch("1"::equals);
+        if (!isAdmin) {
+            throw ErrorCode.FORBIDDEN.toException();
         }
         comment.setStatus(status);
         comment.updateTime();

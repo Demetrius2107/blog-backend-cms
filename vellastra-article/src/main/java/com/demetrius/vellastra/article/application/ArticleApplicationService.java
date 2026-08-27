@@ -7,10 +7,13 @@ import com.demetrius.vellastra.article.domain.article.valueobject.ArticleStatus;
 import com.demetrius.vellastra.article.interfaces.dto.*;
 import com.demetrius.vellastra.common.exception.ErrorCode;
 import com.demetrius.vellastra.common.response.PageResult;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * <p>Title: ArticleApplicationService</p>
@@ -29,6 +32,15 @@ import java.util.List;
 public class ArticleApplicationService {
 
     private final ArticleRepository articleRepository;
+
+    @Value("${site.name:Vellastra}")
+    private String siteName;
+
+    @Value("${site.description:星垂平野阔 · 月涌大江流}")
+    private String siteDescription;
+
+    @Value("${site.url:}")
+    private String siteUrl;
 
     public ArticleApplicationService(ArticleRepository articleRepository) {
         this.articleRepository = articleRepository;
@@ -59,16 +71,20 @@ public class ArticleApplicationService {
     }
 
     /**
-     * 更新文章
+     * 更新文章（仅作者或管理员可操作）
      *
      * @param id      文章ID
      * @param request 更新文章请求
+     * @param userId  当前用户ID
+     * @param roles   当前用户角色（逗号分隔，含 1=超级管理员）
      */
-    public void updateArticle(Long id, UpdateArticleRequest request) {
+    public void updateArticle(Long id, UpdateArticleRequest request, Long userId, String roles) {
         Article article = articleRepository.findById(id);
         if (article == null) {
             throw ErrorCode.ARTICLE_NOT_FOUND.toException();
         }
+        // 越权校验：仅作者本人或管理员可编辑
+        checkPermission(article, userId, roles);
         article.setTitle(request.getTitle());
         article.setContent(request.getContent());
         article.setSummary(request.getSummary());
@@ -82,19 +98,38 @@ public class ArticleApplicationService {
     }
 
     /**
-     * 删除文章
+     * 删除文章（仅作者或管理员可操作，已发布的文章不可删除）
      *
-     * @param id 文章ID
+     * @param id     文章ID
+     * @param userId 当前用户ID
+     * @param roles  当前用户角色（逗号分隔，含 1=超级管理员）
      */
-    public void deleteArticle(Long id) {
+    public void deleteArticle(Long id, Long userId, String roles) {
         Article article = articleRepository.findById(id);
         if (article == null) {
             throw ErrorCode.ARTICLE_NOT_FOUND.toException();
         }
+        // 越权校验：仅作者本人或管理员可删除
+        checkPermission(article, userId, roles);
         if (article.isPublished()) {
             throw ErrorCode.ARTICLE_PUBLISHED.toException();
         }
         articleRepository.delete(id);
+    }
+
+    /**
+     * 越权校验：当前用户是文章作者或超级管理员（角色ID=1）才允许
+     *
+     * @param article 文章实体
+     * @param userId  当前用户ID
+     * @param roles   当前用户角色
+     */
+    private void checkPermission(Article article, Long userId, String roles) {
+        boolean isAdmin = roles != null && java.util.Arrays.stream(roles.split(","))
+                .map(String::trim).anyMatch("1"::equals);
+        if (!isAdmin && (userId == null || !userId.equals(article.getAuthorId()))) {
+            throw com.demetrius.vellastra.common.exception.ErrorCode.FORBIDDEN.toException();
+        }
     }
 
     /**
@@ -243,6 +278,29 @@ public class ArticleApplicationService {
             });
             default -> throw new IllegalArgumentException("Unsupported batch action: " + request.getAction());
         }
+    }
+
+    /**
+     * 导出全部已发布文章（供 SSG 静态站构建时拉取）
+     *
+     * @return 已发布文章的视图对象列表，按置顶优先、发布时间倒序
+     */
+    public List<ArticleVO> exportPublishedArticles() {
+        return articleRepository.findAllByStatus(ArticleStatus.PUBLISHED.getCode())
+                .stream().map(this::toVO).toList();
+    }
+
+    /**
+     * 导出站点配置（供 SSG 静态站构建时拉取）
+     *
+     * @return 站点名称/描述/URL 等配置键值
+     */
+    public Map<String, String> exportSiteConfig() {
+        Map<String, String> config = new HashMap<>();
+        config.put("name", siteName);
+        config.put("description", siteDescription);
+        config.put("url", siteUrl);
+        return config;
     }
 
     /**

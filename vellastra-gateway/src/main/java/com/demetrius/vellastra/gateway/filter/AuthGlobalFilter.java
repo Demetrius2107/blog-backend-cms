@@ -97,7 +97,15 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
             String roles = claims.get("roles", String.class);
 
             // 将用户信息写入请求头，传递给下游微服务
+            // 注意：必须先移除客户端可能伪造的 X-User-Id/X-Username/X-Roles 头，
+            // 否则 header() 是追加而非覆盖，客户端伪造的值会与网关注入的值并存，
+            // 下游 anyMatch("1"::equals) 会被绕过导致越权。
             ServerHttpRequest modifiedRequest = request.mutate()
+                    .headers(headers -> {
+                        headers.remove("X-User-Id");
+                        headers.remove("X-Username");
+                        headers.remove("X-Roles");
+                    })
                     .header("X-User-Id", userId)
                     .header("X-Username", username != null ? username : "")
                     .header("X-Roles", roles != null ? roles : "")

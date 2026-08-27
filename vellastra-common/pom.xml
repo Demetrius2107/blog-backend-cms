@@ -56,9 +56,10 @@
         </dependency>
 
         <!-- ===================== AOP（@RequirePermission 切面） ===================== -->
+        <!-- Spring Boot 4.x: starter-aop 已改名为 starter-aspectj -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-aop</artifactId>
+            <artifactId>spring-boot-starter-aspectj</artifactId>
         </dependency>
 
         <!-- ===================== Test（单元测试） ===================== -->

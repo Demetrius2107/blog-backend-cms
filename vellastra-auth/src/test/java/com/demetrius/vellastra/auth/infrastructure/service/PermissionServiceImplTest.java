@@ -1,10 +1,14 @@
 package com.demetrius.vellastra.auth.infrastructure.service;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.demetrius.vellastra.auth.infrastructure.persistence.mapper.MenuMapper;
 import com.demetrius.vellastra.auth.infrastructure.persistence.mapper.RoleMenuMapper;
 import com.demetrius.vellastra.auth.infrastructure.persistence.po.MenuPO;
 import com.demetrius.vellastra.auth.infrastructure.persistence.po.RoleMenuPO;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,6 +45,16 @@ class PermissionServiceImplTest {
     private MenuMapper menuMapper;
 
     private PermissionServiceImpl permissionService;
+
+    @BeforeAll
+    static void initTableInfo() {
+        // 纯 Mockito 环境需要手动初始化 MyBatis-Plus 表元数据，
+        // 否则 LambdaQueryWrapper 无法解析实体 lambda 缓存
+        TableInfoHelper.initTableInfo(
+                new MapperBuilderAssistant(new MybatisConfiguration(), ""), RoleMenuPO.class);
+        TableInfoHelper.initTableInfo(
+                new MapperBuilderAssistant(new MybatisConfiguration(), ""), MenuPO.class);
+    }
 
     @BeforeEach
     void setUp() {

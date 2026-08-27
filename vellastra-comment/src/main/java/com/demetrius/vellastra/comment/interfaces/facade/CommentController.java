@@ -76,25 +76,31 @@ public class CommentController {
     }
 
     /**
-     * 删除评论
+     * 删除评论（仅评论作者或管理员）
      *
-     * @param id 评论ID
+     * @param id     评论ID
+     * @param userId 当前用户ID（请求头）
+     * @param roles  当前用户角色（请求头，逗号分隔）
      */
     @DeleteMapping("/{id}")
-    public Result<Void> delete(@PathVariable Long id) {
-        commentApplicationService.delete(id);
+    public Result<Void> delete(@PathVariable Long id,
+                               @RequestHeader(value = "X-User-Id", required = false) Long userId,
+                               @RequestHeader(value = "X-Roles", required = false) String roles) {
+        commentApplicationService.delete(id, userId, roles);
         return Result.success();
     }
 
     /**
-     * 审核评论
+     * 审核评论（仅管理员）
      *
      * @param id     评论ID
      * @param status 目标状态（1-通过 2-拒绝）
+     * @param roles  当前用户角色（请求头，逗号分隔）
      */
     @PatchMapping("/{id}/audit")
-    public Result<Void> audit(@PathVariable Long id, @RequestParam Integer status) {
-        commentApplicationService.audit(id, status);
+    public Result<Void> audit(@PathVariable Long id, @RequestParam Integer status,
+                              @RequestHeader(value = "X-Roles", required = false) String roles) {
+        commentApplicationService.audit(id, status, roles);
         return Result.success();
     }
 }

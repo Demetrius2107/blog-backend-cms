@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * <p>Title: ArticleController</p>
@@ -58,24 +59,32 @@ public class ArticleController {
     /**
      * 更新文章
      *
-     * @param id      文章ID
-     * @param request 更新文章请求
+     * @param id         文章ID
+     * @param request    更新文章请求
+     * @param userId     当前用户ID（请求头）
+     * @param roles      当前用户角色（请求头，逗号分隔）
      */
     @PutMapping("/{id}")
     public Result<Void> updateArticle(@PathVariable Long id,
-                                      @Valid @RequestBody UpdateArticleRequest request) {
-        articleApplicationService.updateArticle(id, request);
+                                      @Valid @RequestBody UpdateArticleRequest request,
+                                      @RequestHeader(value = "X-User-Id", required = false) Long userId,
+                                      @RequestHeader(value = "X-Roles", required = false) String roles) {
+        articleApplicationService.updateArticle(id, request, userId, roles);
         return Result.success();
     }
 
     /**
      * 删除文章（已发布的文章不可删除）
      *
-     * @param id 文章ID
+     * @param id     文章ID
+     * @param userId 当前用户ID（请求头）
+     * @param roles  当前用户角色（请求头，逗号分隔）
      */
     @DeleteMapping("/{id}")
-    public Result<Void> deleteArticle(@PathVariable Long id) {
-        articleApplicationService.deleteArticle(id);
+    public Result<Void> deleteArticle(@PathVariable Long id,
+                                      @RequestHeader(value = "X-User-Id", required = false) Long userId,
+                                      @RequestHeader(value = "X-Roles", required = false) String roles) {
+        articleApplicationService.deleteArticle(id, userId, roles);
         return Result.success();
     }
 
@@ -199,6 +208,29 @@ public class ArticleController {
     public Result<Void> batchOperation(@Valid @RequestBody BatchArticleRequest request) {
         articleApplicationService.batchOperation(request);
         return Result.success();
+    }
+
+    // ======================== SSG 导出（供静态站构建拉取） ========================
+
+    /**
+     * 导出全部已发布文章，供静态站点生成器（VitePress 等）构建时拉取。
+     * 路径在网关白名单内，公开访问（只含已发布内容，无敏感数据）。
+     *
+     * @return 已发布文章列表
+     */
+    @GetMapping("/export/articles")
+    public Result<List<ArticleVO>> exportArticles() {
+        return Result.success(articleApplicationService.exportPublishedArticles());
+    }
+
+    /**
+     * 导出站点配置（名称/描述/URL），供静态站点生成器构建时拉取。
+     *
+     * @return 站点配置键值
+     */
+    @GetMapping("/export/site-config")
+    public Result<Map<String, String>> exportSiteConfig() {
+        return Result.success(articleApplicationService.exportSiteConfig());
     }
 
 }
