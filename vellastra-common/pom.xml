@@ -47,6 +47,17 @@
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
         </dependency>
+        <!-- 3.5.9+ 分页插件拆分到独立构件：PaginationInnerInterceptor -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-jsqlparser</artifactId>
+        </dependency>
+
+        <!-- ===================== Jackson 2 兼容（Spring Boot 4.x 将 Jackson 2 支持拆分到此模块） ===================== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-jackson2</artifactId>
+        </dependency>
 
         <!-- ===================== Knife4j / Swagger（BasePageQuery @Schema 注解） ===================== -->
         <dependency>
