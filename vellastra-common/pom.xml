@@ -45,7 +45,7 @@
         <!-- ===================== MyBatis-Plus（枚举注解、分页插件） ===================== -->
         <dependency>
             <groupId>com.baomidou</groupId>
-            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+            <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
         </dependency>
         <!-- 3.5.9+ 分页插件拆分到独立构件：PaginationInnerInterceptor -->
         <dependency>

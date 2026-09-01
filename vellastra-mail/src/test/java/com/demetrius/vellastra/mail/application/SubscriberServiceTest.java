@@ -57,7 +57,7 @@ class SubscriberServiceTest {
     @DisplayName("subscribe 非法邮箱应抛异常")
     void subscribe_invalidEmail_shouldThrow() {
         assertThrows(RuntimeException.class, () -> subscriberService.subscribe("not-an-email", "张三"));
-        verify(subscriberMapper, never()).insert(any());
+        verify(subscriberMapper, never()).insert(any(SubscriberPO.class));
     }
 
     @Test

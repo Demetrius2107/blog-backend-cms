@@ -12,10 +12,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
@@ -30,7 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 文章控制器功能测试（MockMvc + Mock Service）
  *
  * 使用 @SpringBootTest + @AutoConfigureMockMvc 加载完整上下文（含 MyBatis），
- * 通过 @MockBean 模拟 ArticleApplicationService，
+ * 通过 @MockitoBean 模拟 ArticleApplicationService，
  * 验证 HTTP 请求/响应、参数绑定、异常处理等。
  */
 @DisplayName("ArticleController 控制器")
@@ -44,7 +44,7 @@ class ArticleControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockBean
+    @MockitoBean
     private ArticleApplicationService articleApplicationService;
 
     private ArticleVO sampleArticleVO;
@@ -151,7 +151,7 @@ class ArticleControllerTest {
         @Test
         @DisplayName("应返回 200")
         void shouldReturn200() throws Exception {
-            doNothing().when(articleApplicationService).updateArticle(eq(1L), any(UpdateArticleRequest.class));
+            doNothing().when(articleApplicationService).updateArticle(eq(1L), any(UpdateArticleRequest.class), any(), any());
 
             mockMvc.perform(put("/article/1")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -175,7 +175,7 @@ class ArticleControllerTest {
         @DisplayName("文章不存在应返回 404")
         void shouldReturn404WhenArticleNotFound() throws Exception {
             doThrow(new BizException(3001, "文章不存在"))
-                    .when(articleApplicationService).updateArticle(eq(999L), any(UpdateArticleRequest.class));
+                    .when(articleApplicationService).updateArticle(eq(999L), any(UpdateArticleRequest.class), any(), any());
 
             mockMvc.perform(put("/article/999")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -195,7 +195,7 @@ class ArticleControllerTest {
         @Test
         @DisplayName("应返回 200")
         void shouldReturn200() throws Exception {
-            doNothing().when(articleApplicationService).deleteArticle(1L);
+            doNothing().when(articleApplicationService).deleteArticle(1L, null, null);
 
             mockMvc.perform(delete("/article/1"))
                     .andExpect(status().isOk())
@@ -206,7 +206,7 @@ class ArticleControllerTest {
         @DisplayName("删除已发布文章应返回业务错误")
         void shouldReturnBizErrorWhenPublished() throws Exception {
             doThrow(new BizException(3002, "文章已发布，无法删除"))
-                    .when(articleApplicationService).deleteArticle(2L);
+                    .when(articleApplicationService).deleteArticle(2L, null, null);
 
             mockMvc.perform(delete("/article/2"))
                     .andExpect(status().isOk())
@@ -377,7 +377,7 @@ class ArticleControllerTest {
         @Test
         @DisplayName("应返回 200")
         void shouldReturn200() throws Exception {
-            doNothing().when(articleApplicationService).incrementViewCount(1L);
+            doNothing().when(articleApplicationService).incrementViewCount(1L, "127.0.0.1");
 
             mockMvc.perform(post("/article/1/view"))
                     .andExpect(status().isOk())
@@ -394,7 +394,7 @@ class ArticleControllerTest {
         @Test
         @DisplayName("应返回 200")
         void shouldReturn200() throws Exception {
-            doNothing().when(articleApplicationService).toggleLike(1L, 100L);
+            when(articleApplicationService.toggleLike(1L, 100L)).thenReturn(true);
 
             mockMvc.perform(post("/article/1/like")
                             .header("X-User-Id", 100L))

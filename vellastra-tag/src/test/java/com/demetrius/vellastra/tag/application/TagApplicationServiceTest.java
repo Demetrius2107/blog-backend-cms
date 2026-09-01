@@ -56,12 +56,12 @@ class TagApplicationServiceTest {
             TagPO po = inv.getArgument(0);
             po.setId(1L);
             return 1;
-        }).when(tagMapper).insert(any());
+        }).when(tagMapper).insert(any(TagPO.class));
 
         Long id = tagApplicationService.create("Spring", "spring");
 
         assertEquals(1L, id);
-        verify(tagMapper).insert(any());
+        verify(tagMapper).insert(any(TagPO.class));
     }
 
     @Test
@@ -69,7 +69,7 @@ class TagApplicationServiceTest {
     void create_duplicateName_shouldThrow() {
         when(tagMapper.selectCount(any())).thenReturn(1L);
         assertThrows(RuntimeException.class, () -> tagApplicationService.create("Java", "java"));
-        verify(tagMapper, never()).insert(any());
+        verify(tagMapper, never()).insert(any(TagPO.class));
     }
 
     @Test

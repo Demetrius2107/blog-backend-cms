@@ -52,7 +52,7 @@ class CommentApplicationServiceTest {
     @DisplayName("delete 不存在时抛出异常")
     void delete_notFound_shouldThrow() {
         when(commentRepository.findById(99L)).thenReturn(null);
-        assertThrows(BizException.class, () -> commentApplicationService.delete(99L));
+        assertThrows(BizException.class, () -> commentApplicationService.delete(99L, 1L, "1"));
     }
 
     @Test
@@ -86,7 +86,7 @@ class CommentApplicationServiceTest {
         Comment comment = Comment.builder().id(1L).status(0).build();
         when(commentRepository.findById(1L)).thenReturn(comment);
 
-        commentApplicationService.audit(1L, 1);
+        commentApplicationService.audit(1L, 1, "1");
 
         assertEquals(1, comment.getStatus());
     }
@@ -95,7 +95,7 @@ class CommentApplicationServiceTest {
     @DisplayName("audit 评论不存在时抛出异常")
     void audit_notFound_shouldThrow() {
         when(commentRepository.findById(99L)).thenReturn(null);
-        assertThrows(BizException.class, () -> commentApplicationService.audit(99L, 1));
+        assertThrows(BizException.class, () -> commentApplicationService.audit(99L, 1, "1"));
     }
 
     private com.demetrius.vellastra.comment.interfaces.dto.ReplyCommentRequest createReplyRequest(
