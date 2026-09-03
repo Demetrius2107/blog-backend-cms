@@ -11,8 +11,10 @@ on:
   # 手动触发
   workflow_dispatch:
   # 每 6 小时全量重建（兜底，确保静态站与后端数据一致）
-  schedule:
-    - cron: '0 */6 * * *'
+  # ⚠️ 定时构建暂停（2026-09-03）：后端未公网部署且 CMS_API_URL Secret 未配置，
+  # 定时触发必挂于 Fetch content from CMS 步骤；后端部署并配好 Secret 后取消下面两行注释即可恢复
+  # schedule:
+  #   - cron: '0 */6 * * *'
 
 permissions:
   contents: read
